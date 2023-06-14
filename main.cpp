@@ -1,5 +1,5 @@
 #include <GL/glew.h>
-#include <glm/glm.hpp>
+#include <glm/gtx/norm.hpp>
 
 #include <WindowContext/GLFWContext.hpp>
 #include <GLContext.hpp>
@@ -73,7 +73,7 @@ struct Bodies {
     std::vector<float> size;
 
     float mass_to_size(float val) {
-        return val;
+        return val/1000.0f;
     }
 
     void add(const glm::vec3& pos,
@@ -87,14 +87,52 @@ struct Bodies {
 };
 
 struct BodiesCalculator {
+    float G = 0.000000001;
     Bodies& bodies;
-    BodiesCalculator(Bodies& bodies) : bodies(bodies) {}
+    std::vector<std::pair<size_t, size_t>> pairs;
+    BodiesCalculator(Bodies& bodies) : bodies(bodies) {
+        calculate_pairs(bodies.position.size());
+    }
 
-    void update() {
+    void calculate_pairs(size_t count) {
+        for(auto x : std::views::iota((size_t)0, count))
+            for(auto y : std::views::iota(x+1, count))
+                pairs.push_back({x, y});
+    }
+
+    glm::vec3 calc_force(glm::vec3& p1, float& m1, glm::vec3& p2, float m2) {
+        auto F = G*m1*m2/glm::distance2(p1, p2);
+        return glm::normalize(p2-p1) * F;
+    }
+
+    void update_velocities() {
+        std::vector<glm::vec3> forces;
+        std::transform(pairs.begin(), pairs.end(), std::back_inserter(forces), [&](auto& pair){
+            auto [a, b] = pair;
+            return calc_force(bodies.position.at(a),
+                              bodies.mass.at(a),
+                              bodies.position.at(b),
+                              bodies.mass.at(b));
+        });
+        for(std::tuple<std::pair<size_t, size_t>&, glm::vec3&> pf
+             : std::views::zip(pairs, forces)) {
+            auto [a, b] = std::get<0>(pf);
+            auto f = std::get<1>(pf);
+            bodies.velocity.at(a) += f / bodies.mass.at(a);
+            bodies.velocity.at(b) -= f / bodies.mass.at(b);
+        }
+    }
+
+    void update_positions() {
         for(std::tuple<glm::vec3&, glm::vec3&> pv
              : std::views::zip(bodies.position, bodies.velocity)) {
             std::get<0>(pv) += std::get<1>(pv);
         }
+    }
+
+    void update() {
+        update_velocities();
+        update_positions();
     }
 };
 
