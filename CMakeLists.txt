@@ -8,7 +8,12 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 add_subdirectory(deps/io_context)
 add_subdirectory(deps/gl_context)
 
-add_executable(gravity_simulation_exe main.cpp)
+add_executable(gravity_simulation_exe
+    main.cpp
+    Bodies.cpp
+    Renderer.cpp
+    BodiesCalculator.cpp
+)
 target_link_libraries(gravity_simulation_exe
     gl_context
     io
