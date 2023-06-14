@@ -1,0 +1,6 @@
+[submodule "deps/io_context"]
+	path = deps/io_context
+	url = git@github.com:OlegDanko/io_context.git
+[submodule "deps/gl_context"]
+	path = deps/gl_context
+	url = git@github.com:OlegDanko/gl_context.git
