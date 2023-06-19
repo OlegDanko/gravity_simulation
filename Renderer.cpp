@@ -2,6 +2,8 @@
 
 #include <glm/gtx/transform.hpp>
 
+namespace vws = std::views;
+
 std::string vertex_code = R"(
 #version 330 core
 
@@ -11,7 +13,8 @@ layout (location = 2) in vec3 vert;
 
 void main()
 {
-    gl_Position = vec4(position + vert*size, 1.0);
+    float size_ = max(size, 1.1/1080.0);
+    gl_Position = vec4(position + vert*size_, 1.0);
 }
 )";
 
@@ -21,7 +24,6 @@ std::string fragment_code = R"(
 out vec4 FragColor;
 void main()
 {
-//   FragColor = vec4(_mass, 1.0f - _mass, 1.0f, 1.0f);
    FragColor = vec4(1.0f);
 }
 )";
@@ -38,7 +40,7 @@ Renderer::Renderer(Bodies &bodies)
 
     glm::vec4 left{1.0, 0.0, 0.0, 1.0f};
     std::vector<float> vertices;
-    for(auto i : std::views::iota(0, 12)) {
+    for(auto i : vws::iota(0, 12)) {
         auto mat = glm::rotate(M_PIf*i/6,glm::vec3{ 0.0f, 0.0f, 1.0f});
         auto vec = mat*left;
         vertices.push_back(vec.x);

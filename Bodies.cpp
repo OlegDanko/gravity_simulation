@@ -16,6 +16,7 @@ Bodies::Body Bodies::get(size_t i) {
 
 void Bodies::update(Body b) {
     b.radius = mass_to_radius(b.mass);
+    radius_max = std::max(radius_max, b.radius);
 }
 
 void Bodies::remove(Body b) {
@@ -27,14 +28,17 @@ void Bodies::remove(Body b) {
 }
 
 void Bodies::add(const glm::vec3 &pos, const glm::vec3 &vel, float m) {
-    count++;
     positions.push_back(pos);
     velocities.push_back(vel);
     masses.push_back(m);
     radii.push_back(mass_to_radius(m));
+    radius_max = std::max(radius_max, radii.back());
+    count++;
 }
 
 size_t Bodies::get_count() const { return count; }
+
+float Bodies::get_radius_max() const { return radius_max; }
 
 const std::vector<glm::vec3> &Bodies::get_positions() const { return positions; }
 

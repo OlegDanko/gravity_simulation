@@ -10,13 +10,10 @@ class Bodies {
     std::vector<float> radii;
 
     size_t count{0};
+    float radius_max = {0.0f};
 
     static float mass_to_radius(float val);
 public:
-//    std::ranges::zip_view<std::vector<glm::vec3>,
-//                          std::vector<glm::vec3>,
-//                          std::vector<float>,
-//                          std::vector<float>>
     auto view() {
         return std::views::zip(positions, velocities, masses, radii)
                | std::views::take(count);
@@ -41,6 +38,7 @@ public:
              float m);
 
     size_t get_count() const;
+    float get_radius_max() const;
     const std::vector<glm::vec3>& get_positions() const;
     const std::vector<glm::vec3>& get_velocities() const;
     const std::vector<float>& get_masses() const;

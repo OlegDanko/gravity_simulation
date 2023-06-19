@@ -56,19 +56,18 @@ void init_bodies(Bodies& bodies, size_t num) {
         auto dist = sqrt(rand_0_1<float>());
         auto angle = rand_1_1<float>() * M_PIf;
 
-        glm::vec3 position = glm::rotate(angle, z_axis)
-                             * glm::vec4{dist, 0.0f, 0.0f, 1.0f};
+        glm::vec3 position = (glm::rotate(angle, z_axis)
+                              * glm::vec4{dist, 0.0f, 0.0f, 1.0f}) / 0.9f;
 
         glm::vec3 speed{position.y, -position.x, rand_1_1<float>()/10.0f};
         speed *= dist / 10000.0f;
-        float mass = rand_0_1<float>()/sqrtf(dist) / 10.0f;
+        float mass = rand_0_1<float>()/sqrtf(dist) / 100.0f;
 
         bodies.add(position, speed, mass);
     }
 }
 
-int main()
-{
+int main() {
     auto& glfw = io::GLFWContext::get();
     auto& gl = GLContext::get();
     (void)gl;
@@ -79,7 +78,7 @@ int main()
 
     Bodies bodies;
 
-    init_bodies(bodies, 1000);
+    init_bodies(bodies, 15000);
 
     BodiesCalculator calc(bodies);
     Renderer renderer(bodies);
