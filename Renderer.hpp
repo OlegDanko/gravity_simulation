@@ -4,6 +4,7 @@
 #include <VertexArrayObject.hpp>
 
 class Renderer {
+public:
     Bodies& bodies;
     VertexArrayObject vao;
     VertexBufferObject vbo_pos, vbo_size, vbo_vert;
