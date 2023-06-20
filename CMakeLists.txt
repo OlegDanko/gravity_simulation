@@ -12,6 +12,7 @@ add_executable(gravity_simulation_exe
     main.cpp
     Bodies.cpp
     Renderer.cpp
+    GLSimShaders.cpp
     BodiesCalculator.cpp
 )
 target_link_libraries(gravity_simulation_exe

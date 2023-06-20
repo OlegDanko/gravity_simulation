@@ -30,10 +30,6 @@ class BodiesCalculator {
 
     void apply_force(Bodies::Body a, Bodies::Body b, const glm::vec3& force);
 
-    void update_velocities();
-
-    void update_positions();
-
     bool detect_collision(Bodies::Body a, Bodies::Body b);
 
     template<typename IT>
@@ -71,11 +67,12 @@ class BodiesCalculator {
 
     void resolve_collisions(std::unordered_set<collision_chain> collision_chains);
 
-    void update_collisions();
 
     void halt_escapers();
 public:
     BodiesCalculator(Bodies& bodies);
-
+    void update_collisions();
+    void update_velocities();
+    void update_positions();
     void update();
 };

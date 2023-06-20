@@ -43,4 +43,8 @@ public:
     const std::vector<glm::vec3>& get_velocities() const;
     const std::vector<float>& get_masses() const;
     const std::vector<float>& get_radii() const;
+    std::vector<glm::vec3>& get_positions();
+    std::vector<glm::vec3>& get_velocities();
+    std::vector<float>& get_masses();
+    std::vector<float>& get_radii();
 };
