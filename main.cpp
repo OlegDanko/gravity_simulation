@@ -3,6 +3,8 @@
 #include <WindowContext/GLFWContext.hpp>
 #include <GLContext.hpp>
 
+#include "GLComputeShaders.hpp"
+
 #include "Renderer.hpp"
 #include "BodiesCalculator.hpp"
 #include "BodiesCalculatorGlSim.hpp"
@@ -10,69 +12,6 @@
 #include <glm/gtx/transform.hpp>
 #include <functional>
 #include <cmath>
-
-std::string force_calc_vertex_code_ = R"(
-#version 430 core
-
-layout(location = 0) uniform samplerBuffer pos_tex;
-layout(location = 1) uniform samplerBuffer mass_tex;
-layout(location = 2) uniform int a_offset;
-layout(location = 3) uniform int b_offset;
-layout(location = 4) uniform float pixel_offset;
-layout(location = 5) uniform float pixel_size;
-
-out vec3 force_vec;
-
-float G = 0.000000001;
-
-void main()
-{
-    highp int row = int((sqrt(8*gl_VertexID + 1) - 1) / 2);
-    int col = gl_VertexID - row * (row + 1) / 2;
-    int a_id = a_offset + col;
-    int b_id = b_offset + row;
-    vec2 coord = vec2(pixel_offset + pixel_size*row, pixel_offset + pixel_size*col);
-
-    vec3 a_pos = texelFetch(pos_tex, a_id).xyz;
-    vec3 b_pos = texelFetch(pos_tex, b_id).xyz;
-
-    vec3 v = a_pos - b_pos;
-    float dist2 = v.x*v.x + v.y*v.y + v.z*v.z;
-
-    if(dist2 == 0.0f) {
-        gl_Position = vec4(-2.0, -2.0, 0.0, 1.0);
-        force_vec = vec3(0.0);
-        return;
-    }
-
-    float a_mass = texelFetch(mass_tex, a_id).x;
-    float b_mass = texelFetch(mass_tex, b_id).x;
-
-    float force = G * a_mass*b_mass / dist2;
-
-    force_vec = normalize(b_pos - a_pos) * force;
-//    if(row%2 == col%2)
-//        force_vec = vec3(1.0);
-//    else
-//        force_vec = vec3(0.0);
-
-    gl_Position = vec4(coord, 0.0, 1.0);
-}
-
-)";
-
-std::string force_calc_fragment_code_ = R"(
-#version 430 core
-
-out vec4 force_out;
-in vec3 force_vec;
-
-void main()
-{
-//    force_out = vec4(force_vec, 1.0);
-    force_out = vec4(abs(force_vec) * 100000000.0f, 1.0);
-}
-)";
 
 template<typename T>
 T rand_0_1();
@@ -99,6 +38,21 @@ glm::vec3 rand_1_1<glm::vec3>() {
     return { rand_1_1<float>(), rand_1_1<float>(), rand_1_1<float>() };
 }
 
+template<typename T>
+std::enable_if_t<std::is_integral_v<T>, T> div_ceil(T a, T b) {
+    return (a + b - 1) / b;
+}
+
+template<typename T>
+T max(T t) {
+    return t;
+}
+
+template<typename T, typename ...Ts>
+T max(T t, const Ts... ts) {
+    return std::max(t, max(ts...));
+}
+
 
 struct ResizeCallback : io::IWindowResizeListener {
     using callback_t = std::function<void(int, int)>;
@@ -110,8 +64,157 @@ struct ResizeCallback : io::IWindowResizeListener {
     }
 };
 
+struct GLBodyCalculator {
+    Bodies& bodies;
+    size_t chunk_size{128};
+
+    ForceComputeShader force_compute;
+    TotalForceComputeShader total_force_compute;
+    UpdatePositionVelocityComputeShader update_params_compute;
+    GravityComputeShader gravity_compute_shader;
+    GLuint query;
+
+    VertexBufferObject
+        vbo_position_read,
+        vbo_velocity_read,
+        vbo_velocity_write,
+        vbo_masses_read,
+        vbo_force_chunk,
+        vbo_force_total;
+
+    size_t
+        pos_buffer_size_f,
+        vel_buffer_size_f,
+        mas_buffer_size_f,
+        force_chunk_size_f,
+        force_total_size_f;
+
+    VertexBufferObject& vbo_position_write;
+    std::vector<GLfloat> zero_buf;
+
+    GLBodyCalculator(Renderer& r)
+        : bodies(r.bodies)
+        , vbo_position_write(r.vbo_pos) {
+        size_t chunks_count = div_ceil(bodies.get_count(), chunk_size);
+        size_t elements_count = chunks_count * chunk_size;
+
+        glGenQueries(1, &query);
+
+        pos_buffer_size_f = elements_count * 4;
+        vel_buffer_size_f = elements_count * 4;
+        mas_buffer_size_f = elements_count;
+        force_chunk_size_f = chunk_size * chunk_size * 4;
+        force_total_size_f = elements_count * 4;
+
+        zero_buf = std::vector<GLfloat>(max(force_chunk_size_f,
+                                            force_total_size_f));
+
+        vbo_position_read.upload(zero_buf, pos_buffer_size_f);
+        vbo_velocity_read.upload(zero_buf, vel_buffer_size_f);
+        vbo_velocity_write.upload(zero_buf, vel_buffer_size_f);
+        vbo_masses_read.upload(zero_buf, mas_buffer_size_f);
+        vbo_force_chunk.upload(zero_buf, force_chunk_size_f);
+        vbo_force_total.upload(zero_buf, force_total_size_f);
+
+        vbo_position_read.update(bodies.get_positions());
+        vbo_velocity_read.update(bodies.get_velocities());
+        vbo_masses_read.update(bodies.get_masses());
+    }
+
+    void calculate() {
+        size_t chunks_count = div_ceil(bodies.get_count(), chunk_size);
+
+        for(auto b_chunk_id : std::views::iota(size_t(0), chunks_count))
+            for(auto a_chunk_id = 0; a_chunk_id <= b_chunk_id; ++a_chunk_id) {
+                size_t a_offset = a_chunk_id * chunk_size;
+                size_t b_offset = a_chunk_id * chunk_size;
+
+                force_compute.use_program();
+
+                force_compute.set_position_in(vbo_position_read);
+                force_compute.set_mass_in(vbo_masses_read);
+                force_compute.set_force_out(vbo_force_chunk);
+
+                force_compute.set_G(0.000000001);
+                force_compute.set_chunk_size(chunk_size);
+
+                force_compute.set_a_offset(a_offset);
+                force_compute.set_b_offset(b_offset);
+
+                force_compute.dispatch(chunk_size*chunk_size, 1, 1);
+                force_compute.barrier();
+
+                total_force_compute.use_program();
+                total_force_compute.set_force_in(vbo_force_chunk);
+                total_force_compute.set_force_out(vbo_force_total);
+                total_force_compute.set_chunk_size(chunk_size);
+
+                total_force_compute.set_a_offset(a_offset);
+                total_force_compute.set_b_offset(b_offset);
+
+                total_force_compute.dispatch(chunk_size, 1, 1);
+                total_force_compute.barrier();
+            }
+
+        update_params_compute.use_program();
+        update_params_compute.set_position_in(vbo_position_read);
+        update_params_compute.set_velocity_in(vbo_velocity_read);
+        update_params_compute.set_mass_in(vbo_masses_read);
+        update_params_compute.set_force_in(vbo_force_total);
+        update_params_compute.set_position_out(vbo_position_write);
+        update_params_compute.set_velocity_out(vbo_velocity_write);
+
+        update_params_compute.dispatch(bodies.get_count(), 1, 1);
+        update_params_compute.barrier();
+
+    }
+
+    void calculate_2() {
+        gravity_compute_shader.use_program();
+        gravity_compute_shader.set_position_in(vbo_position_read);
+        gravity_compute_shader.set_velocity_in(vbo_velocity_read);
+        gravity_compute_shader.set_mass_in(vbo_masses_read);
+        gravity_compute_shader.set_position_out(vbo_position_write);
+        gravity_compute_shader.set_velocity_out(vbo_velocity_write);
+
+        gravity_compute_shader.set_elements_count(bodies.get_count());
+        gravity_compute_shader.set_G(0.000000001);
+
+        gravity_compute_shader.dispatch(bodies.get_count(), 1, 1);
+        gravity_compute_shader.barrier();
+    }
+
+    void update() {
+        std::swap(vbo_position_read, vbo_position_write);
+        std::swap(vbo_velocity_read, vbo_velocity_write);
+
+        vbo_position_read.update(bodies.get_positions());
+        vbo_velocity_read.update(bodies.get_velocities());
+        vbo_masses_read.update(bodies.get_masses());
+
+        vbo_position_write.update(zero_buf, pos_buffer_size_f);
+        vbo_velocity_write.update(zero_buf, vel_buffer_size_f);
+        vbo_force_chunk.update(zero_buf, force_chunk_size_f);
+        vbo_force_total.update(zero_buf, force_total_size_f);
+
+        glBeginQuery(GL_TIME_ELAPSED, query);
+//        calculate();
+        calculate_2();
+        glEndQuery(GL_TIME_ELAPSED);
+        GLint64 elapsed;
+        glGetQueryObjecti64v(query, GL_QUERY_RESULT, &elapsed);
+
+        std::cout << elapsed / 1000000.0f << std::endl;
+    }
+
+    void cpy_params_gpu_to_cpu() {
+        vbo_position_write.download(bodies.get_positions(), bodies.get_count());
+        vbo_velocity_write.download(bodies.get_velocities(), bodies.get_count());
+    }
+};
+
 void init_bodies(Bodies& bodies, size_t num) {
-    glm::vec3 z_axis{ 0.0f, 0.0f, 1.0f};
+    glm::vec3 z_axis{0.0f, 0.0f, 1.0f};
 
     for(auto i : std::views::iota((size_t)0, num)) {
         (void)i;
@@ -119,14 +222,14 @@ void init_bodies(Bodies& bodies, size_t num) {
         auto dist = sqrt(rand_0_1<float>());
         auto angle = rand_1_1<float>() * M_PIf;
 
-        glm::vec3 position = (glm::rotate(angle, z_axis)
+        glm::vec4 position = (glm::rotate(angle, z_axis)
                               * glm::vec4{dist, 0.0f, 0.0f, 1.0f}) / 1.0f;
 
-        glm::vec3 speed{position.y, -position.x, rand_1_1<float>()/10.0f};
-        speed *= dist / 10000.0f;
-        float mass = rand_0_1<float>()/sqrtf(dist) / 1.0f;
+        glm::vec4 velocity{position.y, -position.x, rand_1_1<float>()/5.0f, 0.0f};
+        velocity *= dist / 10000.0f;
+        float mass = rand_0_1<float>()/sqrtf(dist) / 10.1f;
 
-        bodies.add(position, speed, mass);
+        bodies.add(position, velocity, mass);
     }
 }
 
@@ -141,89 +244,44 @@ int main() {
 
     Bodies bodies;
 
-    init_bodies(bodies, 1024);
+    init_bodies(bodies, 4096);
+//    init_bodies(bodies, 1024);
+//    bodies.add({0.5, 0.0, 0.0, 0.0}, glm::vec4{0.0}, 1);
+//    bodies.add({-0.5, 0.0, 0.0, 0.0}, glm::vec4{0.0}, 10);
 
-//    BodiesCalculatorGlSim calc_gl(bodies);
     BodiesCalculator calc(bodies);
     Renderer renderer(bodies);
-
-    VertexArrayObject vao;
-//    VertexBufferObject vbo;
-//    std::vector<int> elements(1024);
-//    vbo.load(elements);
-//    vao.add_array_buffer(vbo, 0, 1);
-
-
-
-    VertexBufferObject vbo_vel, vbo_mass;
-    vbo_vel.load(bodies.get_velocities());
-    vbo_mass.load(bodies.get_masses());
-
-    GLuint tex[3];
-    glGenTextures(3, tex);
-    glActiveTexture(GL_TEXTURE0);
-    glBindTexture(GL_TEXTURE_BUFFER, tex[0] );
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, renderer.vbo_pos.id);
-    glActiveTexture(GL_TEXTURE1);
-    glBindTexture(GL_TEXTURE_BUFFER, tex[1] );
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_RGB32F, vbo_vel.id);
-    glActiveTexture(GL_TEXTURE2);
-    glBindTexture(GL_TEXTURE_BUFFER, tex[2] );
-    glTexBuffer(GL_TEXTURE_BUFFER, GL_R32F, vbo_mass.id);
-
-    Shader v(force_calc_vertex_code_, GL_VERTEX_SHADER);
-    Shader f(force_calc_fragment_code_, GL_FRAGMENT_SHADER);
-    ShaderProgram force_calc_program(v, f);
-
-    force_calc_program.set_uniform(0, 0);
-    force_calc_program.set_uniform(1, 3);
-
-    auto setup_force_calc = [&](size_t count, size_t a_chunk_id, size_t b_chunk_id){
-        glViewport(0, 0, count, count);
-//        glViewport(0, 0, 1024, 1024);
-//        glPointSize(1024/count + 1);
-        force_calc_program.set_uniform(2, int(a_chunk_id*count));
-        force_calc_program.set_uniform(3, int(b_chunk_id*count));
-        auto pixel_size =  2.0f / count;
-        auto pixel_offset = -1.0f + pixel_size/2.0f;
-        force_calc_program.set_uniform(4, pixel_offset);
-        force_calc_program.set_uniform(5, pixel_size);
-
-        vao.bind();
-        glDrawArrays(GL_POINTS, 0, count*(count+1)/2);
-        vao.unbind();
-    };
-
-    renderer.program.use();
-    renderer.program.set_uniform(0, 0);
-    renderer.program.set_uniform(1, 1);
-    renderer.program.set_uniform(2, 2);
+    GLBodyCalculator gl_calc(renderer);
 
     glfw.update();
     std::tie(width, height) = glfw.get_dimensions();
 
-    while(glfw.update()) {
-        calc.update();
-//        calc.update_collisions();
-//        calc_gl.copy_from_bodies();
-//        calc_gl.update();
-//        calc_gl.copy_to_bodies();
-        vbo_vel.update(bodies.get_velocities(), bodies.get_count());
-        vbo_mass.update(bodies.get_masses(), bodies.get_count());
 
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
+    auto start = std::chrono::steady_clock::now();
+    while(glfw.update()) {
+        auto end = std::chrono::steady_clock::now();
+        auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+        start = end;
+        std::cout << elapsed.count() << std::endl;
+
+//        calc.update();
+        calc.update_collisions();
+//        calc.update_velocities_lazy_parallel();
+//        calc.update_positions();
+//        calc.halt_escapers();
+
         glClear(GL_COLOR_BUFFER_BIT);
 
-        glPointSize(1);
-
-        force_calc_program.use();
-        renderer.update();
-
-        setup_force_calc(bodies.get_count(), 0, 0);
         glViewport(0, 0, width, height);
-        renderer.render();
-    }
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
+
+        gl_calc.update();
+//        renderer.update();
+        renderer.upload_radii();
+        renderer.render();
+        gl_calc.cpy_params_gpu_to_cpu();
+    }
 
     return 0;
 }

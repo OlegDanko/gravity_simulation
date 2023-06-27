@@ -2,6 +2,7 @@
 
 #include <vector>
 #include <array>
+#include <string>
 #include <glm/glm.hpp>
 #include <glm/gtx/norm.hpp>
 
@@ -22,7 +23,6 @@ using velocity_tex_t = texture1d_t<glm::vec3>;
 using mass_tex_t = texture1d_t<float>;
 using radius_tex_t = texture1d_t<float>;
 using forces_tile_t = texture2d_t<glm::vec3>;
-
 
 struct GLSimShaders {
     static void calc_forces(
@@ -56,4 +56,10 @@ struct GLSimShaders {
         position_tex_t& pos_out,
         velocity_tex_t& vel_out
         );
+};
+
+struct GLShaders {
+    static std::string calc_forces_vertex;
+    static std::string calc_velocities_vertex;
+    static std::string update_pos_vel_vertex;
 };

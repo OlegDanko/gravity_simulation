@@ -59,9 +59,10 @@ void BodiesCalculator::update_velocities_lazy_parallel() {
         }
     }
 
-    for(auto [id, f] : forces | vws::enumerate) {
+    for(auto [id, force] : forces | vws::enumerate) {
         auto a = bodies.get(id);
-        a.velocity += f / a.mass;
+        glm::vec4 f(force.x, force.y, force.z, 0.0f);
+        a.velocity += glm::vec4(f) / a.mass;
     }
 }
 
@@ -69,8 +70,10 @@ void BodiesCalculator::apply_force(Bodies::Body a, Bodies::Body b, const glm::ve
     if(a.mass *b.mass  == 0)
         return;
 
-    a.velocity += force / a.mass;
-    b.velocity -= force / b.mass;
+    glm::vec4 f(force.x, force.y, force.z, 0.0f);
+
+    a.velocity += f / a.mass;
+    b.velocity -= f / b.mass;
 }
 
 void BodiesCalculator::update_velocities() {
@@ -101,17 +104,6 @@ bool BodiesCalculator::detect_collision(Bodies::Body a, Bodies::Body b) {
     auto dist = a.radius + b.radius;
 
     return dist*dist > glm::distance2(a.position, b.position);
-}
-
-void BodiesCalculator::resolve_collision(Bodies::Body a, Bodies::Body b) {
-    a.position += (b.position - a.position) * b.mass / (b.mass + a.mass);
-    auto impulse = a.velocity*a.mass + b.velocity*b.mass;
-    a.mass += b.mass;
-    a.velocity = impulse/a.mass;
-
-    b.position = glm::vec3{10.0f};
-    b.velocity = glm::vec3{0.0f};
-    b.mass = 0;
 }
 
 std::vector<std::unordered_set<size_t> > BodiesCalculator::get_collision_candidates() {
@@ -215,7 +207,7 @@ void BodiesCalculator::halt_escapers() {
             a.position.x = edge;
             flag = true;
         }
-        if(a.position.x < -edge) {
+        else if(a.position.x < -edge) {
             a.position.x = -edge;
             flag = true;
         }
@@ -223,13 +215,13 @@ void BodiesCalculator::halt_escapers() {
             a.position.y = edge;
             flag = true;
         }
-        if(a.position.y < -edge) {
+        else if(a.position.y < -edge) {
             a.position.y = -edge;
             flag = true;
         }
 
         if(flag)
-            a.velocity = glm::vec3{0.0f};
+            a.velocity = glm::vec4{0.0f};
     }
 }
 
@@ -244,5 +236,5 @@ void BodiesCalculator::update() {
     update_velocities_lazy_parallel();
     //        update_velocities();
     update_positions();
-    halt_escapers();
+//    halt_escapers();
 }

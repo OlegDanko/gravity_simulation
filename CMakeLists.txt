@@ -25,7 +25,12 @@ target_include_directories(gravity_simulation_exe PRIVATE
     ${CMAKE_CURRENT_SOURCE_DIR}/deps/gl_context/include/
 )
 
-target_compile_options(gravity_simulation_exe PRIVATE -Wall -Wextra -Wpedantic -Werror)
+target_compile_options(gravity_simulation_exe PRIVATE
+    -Wall
+    -Wextra
+    -Wpedantic
+#    -Werror
+)
 
 install(TARGETS gravity_simulation_exe
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}

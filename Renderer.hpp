@@ -13,6 +13,8 @@ public:
     Renderer(Bodies& bodies);
 
     void update();
+    void upload_positions();
+    void upload_radii();
 
     void render();
 };
