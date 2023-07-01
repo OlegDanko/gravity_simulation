@@ -10,11 +10,14 @@ add_subdirectory(deps/gl_context)
 
 add_executable(gravity_simulation_exe
     main.cpp
+    Utils.cpp
     Bodies.cpp
     Renderer.cpp
-    GLSimShaders.cpp
-    BodiesCalculator.cpp
+    ComputeCPU.cpp
+    ComputeGPU.cpp
+    GravityComputeShader.cpp
 )
+
 target_link_libraries(gravity_simulation_exe
     gl_context
     io

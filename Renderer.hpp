@@ -4,17 +4,13 @@
 #include <VertexArrayObject.hpp>
 
 class Renderer {
-public:
-    Bodies& bodies;
     VertexArrayObject vao;
-    VertexBufferObject vbo_pos, vbo_size, vbo_vert;
+    VertexBufferObject vbo_vertices;
     ShaderProgram program;
 public:
-    Renderer(Bodies& bodies);
+    void prepare_vertices();
 
-    void update();
-    void upload_positions();
-    void upload_radii();
+    Renderer(VertexBufferObject& vbo_positions, VertexBufferObject& vbo_radii);
 
-    void render();
+    void render(size_t count);
 };

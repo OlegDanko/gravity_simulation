@@ -2,53 +2,96 @@
 
 #include <glm/gtx/norm.hpp>
 
-float Bodies::mass_to_radius(float val) {
-    return std::pow(val/50, 0.4)/100;
+float Body::mass_to_radius(float val) {
+    return std::pow(val/50.0f, 0.4f)/100.0f;
 }
 
-Bodies::Body Bodies::get(size_t i) {
-    return {i,
-            positions.at(i),
-            velocities.at(i),
-            masses.at(i),
-            radii.at(i) };
+bool Body::operator==(const Body &that) const {
+    return &position == &that.position;
+}
+
+bool Body::operator!=(const Body &that) const {
+    return !(*this == that);
+}
+
+void Bodies::add(glm::vec4 p, glm::vec4 v, float m) {
+    if(count == positions.size()) {
+        positions.push_back({});
+        velocities.push_back({});
+        masses.push_back({});
+        radii.push_back({});
+    }
+    auto last = get(count++);
+    last.position = p;
+    last.velocity = v;
+    last.mass = m;
+    update(last);
+}
+
+Body Bodies::get(size_t id) {
+    return {
+        positions.at(id),
+        velocities.at(id),
+        masses.at(id),
+        radii.at(id)
+    };
 }
 
 void Bodies::update(Body b) {
-    b.radius = mass_to_radius(b.mass);
-    radius_max = std::max(radius_max, b.radius);
+    b.radius = Body::mass_to_radius(b.mass);
+    radius_max = std::max(0.0f, b.radius);
 }
 
 void Bodies::remove(Body b) {
     auto last = get(--count);
-    b.position = glm::vec4{1000.0f};
-    b.velocity = {};
-    b.mass = {};
-    b.radius = {};
-    std::swap(b.position, last.position);
-    std::swap(b.velocity, last.velocity);
-    std::swap(b.mass, last.mass);
-    std::swap(b.radius, last.radius);
+    if(last != b) {
+        b.position = last.position;
+        b.velocity = last.velocity;
+        b.mass = last.mass;
+        b.radius = last.radius;
+    }
+    last.position = glm::vec4{0.0f};
+    last.velocity = glm::vec4{0.0f};
+    last.mass = 0.0f;
+    last.radius = 0.0f;
 }
 
-void Bodies::add(const glm::vec4 &pos, const glm::vec4 &vel, float m) {
-    positions.push_back(pos);
-    velocities.push_back(vel);
-    masses.push_back(m);
-    radii.push_back(mass_to_radius(m));
-    radius_max = std::max(radius_max, radii.back());
-    count++;
+size_t Bodies::get_count() const {
+    return count;
 }
 
-size_t Bodies::get_count() const { return count; }
+float Bodies::get_radius_max() const {
+    return radius_max;
+}
 
-float Bodies::get_radius_max() const { return radius_max; }
+const std::vector<glm::vec4> &Bodies::get_positions() const {
+    return positions;
+}
 
-const std::vector<glm::vec4> &Bodies::get_positions() const { return positions; }
-const std::vector<glm::vec4> &Bodies::get_velocities() const { return velocities; }
-const std::vector<float> &Bodies::get_masses() const { return masses; }
-const std::vector<float> &Bodies::get_radii() const { return radii; }
-std::vector<glm::vec4> &Bodies::get_positions() { return positions; }
-std::vector<glm::vec4> &Bodies::get_velocities() { return velocities; }
-std::vector<float> &Bodies::get_masses() { return masses; }
-std::vector<float> &Bodies::get_radii() { return radii; }
+std::vector<glm::vec4> &Bodies::get_positions() {
+    return positions;
+}
+
+const std::vector<glm::vec4> &Bodies::get_velocities() const {
+    return velocities;
+}
+
+std::vector<glm::vec4> &Bodies::get_velocities() {
+    return velocities;
+}
+
+const std::vector<float> &Bodies::get_masses() const {
+    return masses;
+}
+
+std::vector<float> &Bodies::get_masses() {
+    return masses;
+}
+
+const std::vector<float> &Bodies::get_radii() const {
+    return radii;
+}
+
+std::vector<float> &Bodies::get_radii() {
+    return radii;
+}

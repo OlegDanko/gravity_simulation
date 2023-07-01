@@ -27,48 +27,30 @@ void main()
 }
 )";
 
-Renderer::Renderer(Bodies &bodies)
-    : bodies(bodies)
-    , program(Shader::make_vertex(vertex_code),
-              Shader::make_fragment(fragment_code))
-
-{
-    vbo_pos.upload(bodies.get_positions());
-    vbo_size.upload(bodies.get_radii());
-
+void Renderer::prepare_vertices() {
     glm::vec4 left{1.0, 0.0, 0.0, 1.0f};
-    std::vector<float> vertices;
+    std::vector<glm::vec3> vertices;
     for(auto i : vws::iota(0, 12)) {
         auto mat = glm::rotate(M_PIf*i/6,glm::vec3{ 0.0f, 0.0f, 1.0f});
         auto vec = mat*left;
-        vertices.push_back(vec.x);
-        vertices.push_back(vec.y);
-        vertices.push_back(vec.z);
+        vertices.push_back(glm::vec3(vec));
     }
 
-    vbo_vert.upload(vertices);
-
-    vao.add_array_buffer(vbo_pos, 0, 4, 0, 0, 1);
-    vao.add_array_buffer(vbo_size, 1, 1, 0, 0, 1);
-    vao.add_array_buffer(vbo_vert, 2, 3);
+    vbo_vertices.upload(vertices);
 }
 
-void Renderer::upload_positions() {
-    vbo_pos.update(bodies.get_positions(), bodies.get_count());
+Renderer::Renderer(VertexBufferObject &vbo_positions, VertexBufferObject &vbo_radii)
+    : program(Shader::make_vertex(vertex_code),
+              Shader::make_fragment(fragment_code)) {
+    prepare_vertices();
+    vao.add_array_buffer(vbo_positions, 0, 4, 0, 0, 1);
+    vao.add_array_buffer(vbo_radii, 1, 1, 0, 0, 1);
+    vao.add_array_buffer(vbo_vertices, 2, 3);
 }
 
-void Renderer::upload_radii() {
-    vbo_size.update(bodies.get_radii(), bodies.get_count());
-}
-
-void Renderer::update() {
-    upload_positions();
-    upload_radii();
-}
-
-void Renderer::render() {
+void Renderer::render(size_t count) {
     program.use();
     vao.bind();
-    glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 12, bodies.get_count());
+    glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 12, count);
     vao.unbind();
 }
