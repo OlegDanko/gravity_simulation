@@ -19,7 +19,7 @@ void compute_collisions_cpu(Bodies &bodies) {
 void compute_gravity_cpu(Bodies &bodies, float G) {
     auto enum_bodies = bodies.view() | std::views::enumerate;
 
-    unique_pairs pairs(enum_bodies);
+    UniquePairs pairs(enum_bodies);
     auto forces = calc_forces(pairs, bodies.get_count(), G);
 
     apply_force(bodies.view(), forces | std::views::all);
@@ -28,7 +28,7 @@ void compute_gravity_cpu(Bodies &bodies, float G) {
 void compute_gravity_cpu_parallel(Bodies &bodies, float G, size_t thread_count) {
     auto enum_bodies = bodies.view() | std::views::enumerate;
 
-    unique_pairs pairs(enum_bodies);
+    UniquePairs pairs(enum_bodies);
     auto forces = calc_forces(pairs, bodies.get_count(), thread_count, G);
 
     apply_force(bodies.view(), forces | std::views::all);

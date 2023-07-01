@@ -32,7 +32,7 @@ target_compile_options(gravity_simulation_exe PRIVATE
     -Wall
     -Wextra
     -Wpedantic
-#    -Werror
+    -Werror
 )
 
 install(TARGETS gravity_simulation_exe

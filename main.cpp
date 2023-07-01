@@ -9,6 +9,75 @@
 
 #include "Utils.hpp"
 
+struct CPUComputeRoutine {
+    Bodies& bodies;
+    VertexBufferObject &pos_out, &rad_out;
+    float G;
+
+    CPUComputeRoutine(Bodies& bodies,
+                      VertexBufferObject &positions_out,
+                      VertexBufferObject  &radii_out,
+                      float G)
+        : bodies(bodies)
+        , pos_out(positions_out)
+        , rad_out(radii_out)
+        , G(G) {}
+
+    void compute() {
+        compute_collisions_cpu(bodies);
+        rad_out.update(bodies.get_radii());
+
+        compute_gravity_cpu_parallel(bodies, G, 8);
+        pos_out.update(bodies.get_positions());
+    }
+};
+struct CPUGPUComputeRoutine {
+    Bodies& bodies;
+    VertexBufferObject &vbo_positions_out, &rad_out;
+    float G;
+
+    VertexBufferObject
+        vbo_position_calc_in,
+        vbo_velocities_calc_in,
+        vbo_mass_calc_in,
+        vbo_velocities_calc_out;
+
+    GravityComputeGPU gravity_compute;
+
+    CPUGPUComputeRoutine(Bodies& bodies,
+                         VertexBufferObject &positions_out,
+                         VertexBufferObject  &radii_out,
+                         float G)
+        : bodies(bodies)
+        , vbo_positions_out(positions_out)
+        , rad_out(radii_out)
+        , G(G) {
+        vbo_position_calc_in.init<glm::vec4>(bodies.get_count());
+        vbo_velocities_calc_in.init<glm::vec4>(bodies.get_count());
+        vbo_mass_calc_in.init<float>(bodies.get_count());
+        vbo_velocities_calc_out.init<glm::vec4>(bodies.get_count());
+        gravity_compute.set_vbos(vbo_position_calc_in,
+                                 vbo_velocities_calc_in,
+                                 vbo_mass_calc_in,
+                                 vbo_positions_out,
+                                 vbo_velocities_calc_out);
+    }
+
+    void compute() {
+        compute_collisions_cpu(bodies);
+        rad_out.update(bodies.get_radii());
+
+        vbo_position_calc_in.update(bodies.get_positions(), bodies.get_count());
+        vbo_velocities_calc_in.update(bodies.get_velocities(), bodies.get_count());
+        vbo_mass_calc_in.update(bodies.get_masses(), bodies.get_count());
+
+        gravity_compute.calculate(bodies.get_count(), G);
+
+        vbo_positions_out.download(bodies.get_positions(), bodies.get_count());
+        vbo_velocities_calc_out.download(bodies.get_velocities(), bodies.get_count());
+    }
+};
+
 template<typename Bodies_t>
 void init_bodies(Bodies_t& bodies, size_t num) {
     glm::vec3 z_axis{0.0f, 0.0f, 1.0f};
@@ -57,47 +126,24 @@ int main() {
 //    bodies.add({-0.1, 0.0, 0.0, 0.0}, glm::vec4{0.0}, 10);
 
     VertexBufferObject
-        vbo_position_calc_in,
-        vbo_velocities_calc_in,
-        vbo_mass_calc_in,
         vbo_positions_render,
-        vbo_velocities_calc_out,
         vbo_radii_render;
 
-    vbo_position_calc_in.init<glm::vec4>(bodies.get_count());
-    vbo_velocities_calc_in.init<glm::vec4>(bodies.get_count());
-    vbo_mass_calc_in.init<float>(bodies.get_count());
     vbo_positions_render.init<glm::vec4>(bodies.get_count());
-    vbo_velocities_calc_out.init<glm::vec4>(bodies.get_count());
     vbo_radii_render.init<float>(bodies.get_count());
 
-    GravityComputeGPU gravity_compute(vbo_position_calc_in,
-                                      vbo_velocities_calc_in,
-                                      vbo_mass_calc_in,
-                                      vbo_positions_render,
-                                      vbo_velocities_calc_out);
     Renderer renderer(vbo_positions_render, vbo_radii_render);
+
+    float G = 0.000000001f;
+//    CPUComputeRoutine routine(bodies, vbo_positions_render, vbo_radii_render, G);
+    CPUGPUComputeRoutine routine(bodies, vbo_positions_render, vbo_radii_render, G);
 
     glfw.update();
     std::tie(width, height) = glfw.get_dimensions();
 
-    float G = 0.000000001f;
 
     while(glfw.update()) {
-        compute_collisions_cpu(bodies);
-        vbo_radii_render.update(bodies.get_radii());
-
-//        compute_gravity_cpu_parallel(bodies, G, 8);
-//        vbo_positions_render.update(bodies.get_positions());
-
-        vbo_position_calc_in.update(bodies.get_positions(), bodies.get_count());
-        vbo_velocities_calc_in.update(bodies.get_velocities(), bodies.get_count());
-        vbo_mass_calc_in.update(bodies.get_masses(), bodies.get_count());
-
-        gravity_compute.calculate(bodies.get_count(), G);
-
-        vbo_positions_render.download(bodies.get_positions(), bodies.get_count());
-        vbo_velocities_calc_out.download(bodies.get_velocities(), bodies.get_count());
+        routine.compute();
 
         glClear(GL_COLOR_BUFFER_BIT);
 

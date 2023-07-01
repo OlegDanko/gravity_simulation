@@ -1,6 +1,10 @@
 #include "ComputeGPU.hpp"
 
-GravityComputeGPU::GravityComputeGPU(VertexBufferObject &position_in, VertexBufferObject &velocity_in, VertexBufferObject &mass_in, VertexBufferObject &position_out, VertexBufferObject &velocity_out) {
+void GravityComputeGPU::set_vbos(VertexBufferObject& position_in,
+              VertexBufferObject& velocity_in,
+              VertexBufferObject& mass_in,
+              VertexBufferObject& position_out,
+              VertexBufferObject& velocity_out) {
     shader.set_position_in(position_in);
     shader.set_velocity_in(velocity_in);
     shader.set_mass_in(mass_in);

@@ -37,11 +37,11 @@ T max(T t, const Ts... ts) {
 }
 
 template<typename V>
-struct unique_pairs {
+struct UniquePairs {
     V& view;
     using v_it_t = decltype(view.begin());
     using val_t = decltype(*view.begin());
-    unique_pairs(V& v) : view(v) {}
+    UniquePairs(V& v) : view(v) {}
 
     struct it {
         v_it_t begin;

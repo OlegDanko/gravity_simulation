@@ -55,7 +55,7 @@ std::unordered_set<collision_chain> detect_collisions(BODIES_GROUPS bodies_group
     std::unordered_map<Body, collision_chain> collisions_per_body_map;
 
     for(auto& bodies_set : bodies_groups)
-        for(auto [a, b] : unique_pairs(bodies_set)) {
+        for(auto [a, b] : UniquePairs(bodies_set)) {
 
             if(!detect_collision(a, b))
                 continue;
