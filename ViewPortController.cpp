@@ -30,6 +30,7 @@ void ViewPortController::on_key(int key, bool pressed) {
     case GLFW_KEY_D: serve_state_change(r, pressed); break;
     case GLFW_KEY_Q: serve_state_change(u, pressed); break;
     case GLFW_KEY_E: serve_state_change(d, pressed); break;
+    case GLFW_KEY_C: vp.fov = pressed ? 0.722 : 1.222f; break;
     case GLFW_KEY_LEFT_SHIFT: mv_speed_mod = pressed ? 10.0f : 1.0f; break;
     default: break;
     };

@@ -10,6 +10,7 @@ struct ViewPort {
     float pitch = 0.0f,
         yaw = 0.0f;
     float aspect = 1.0f;
+    float fov = 1.222f;
 
     glm::vec3 rotate_direction(const glm::vec4& dir) const;
 
