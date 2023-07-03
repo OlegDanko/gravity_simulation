@@ -1,6 +1,6 @@
 #include "ComputeCPU.hpp"
 #include "Utils.hpp"
-#include "BodiesCPUFunctions.hpp"
+#include "ComputeCPUFunctions.hpp"
 
 void compute_collisions_cpu(Bodies &bodies) {
     auto candidates = get_collision_candidates(bodies.view(), 4.0f);

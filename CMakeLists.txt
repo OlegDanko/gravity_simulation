@@ -16,6 +16,10 @@ add_executable(gravity_simulation_exe
     ComputeCPU.cpp
     ComputeGPU.cpp
     GravityComputeShader.cpp
+    ViewPort.cpp
+    ViewPortController.cpp
+    CPUComputeRoutine.cpp
+    CPUGPUComputeRoutine.cpp
 )
 
 target_link_libraries(gravity_simulation_exe

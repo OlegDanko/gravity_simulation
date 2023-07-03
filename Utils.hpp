@@ -106,6 +106,10 @@ struct Timer {
     std::chrono::steady_clock::time_point start_time;
     std::chrono::steady_clock::time_point lap_start_time;
 
+    Timer() {
+        start();
+    }
+
     void start() {
         start_time = std::chrono::steady_clock::now();
         lap_start_time = start_time;
