@@ -62,28 +62,28 @@ void main() {
 }
 )";
 
-GravityComputeShader::GravityComputeShader() : ComputeShaderBase<5>(code) {}
+GravityComputeShader::GravityComputeShader() : base_t(code) {}
 
-void GravityComputeShader::set_position_in(VertexBufferObject &vbo) {
+void GravityComputeShader::set_position_in(ArrayBufferObject &vbo) {
     set_buffer<glm::vec4>(vbo, 0, GL_READ_ONLY);
 }
 
-void GravityComputeShader::set_velocity_in(VertexBufferObject &vbo) {
+void GravityComputeShader::set_velocity_in(ArrayBufferObject &vbo) {
     set_buffer<glm::vec4>(vbo, 1, GL_READ_ONLY);
 }
 
-void GravityComputeShader::set_mass_in(VertexBufferObject &vbo) {
+void GravityComputeShader::set_mass_in(ArrayBufferObject &vbo) {
     set_buffer<GLfloat>(vbo, 2, GL_READ_ONLY);
 }
 
-void GravityComputeShader::set_position_out(VertexBufferObject &vbo) {
+void GravityComputeShader::set_position_out(ArrayBufferObject &vbo) {
     set_buffer<glm::vec4>(vbo, 3, GL_WRITE_ONLY);
 }
 
-void GravityComputeShader::set_velocity_out(VertexBufferObject &vbo) {
+void GravityComputeShader::set_velocity_out(ArrayBufferObject &vbo) {
     set_buffer<glm::vec4>(vbo, 4, GL_WRITE_ONLY);
 }
 
-void GravityComputeShader::set_elements_count(GLint val) { program.set_uniform(0, val); }
+void GravityComputeProgramConfig::set_elements_count(GLint val) { program.set_uniform(0, val); }
 
-void GravityComputeShader::set_G(GLfloat val) { program.set_uniform(1, val); }
+void GravityComputeProgramConfig::set_G(GLfloat val) { program.set_uniform(1, val); }

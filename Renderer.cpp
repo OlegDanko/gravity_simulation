@@ -83,33 +83,34 @@ void Renderer::prepare_vertices() {
         vertices.push_back(glm::vec3(vec));
     }
 
-    vbo_vertices.upload(vertices);
+    vbo_vertices.bind().upload(vertices);
 }
 
-Renderer::Renderer(VertexBufferObject &vbo_positions, VertexBufferObject &vbo_radii)
+Renderer::Renderer(ArrayBufferObject &vbo_positions, ArrayBufferObject &vbo_radii)
     : program_circles(Shader::make_vertex(vertex_code),
                       Shader::make_fragment(fragment_code))
     , program_points(Shader::make_vertex(vertex_point_code),
                       Shader::make_fragment(fragment_code)){
     prepare_vertices();
-    vao_circles.add_array_buffer(vbo_positions, 0, 4, 0, 0, 1);
-    vao_circles.add_array_buffer(vbo_radii, 1, 1, 0, 0, 1);
-    vao_circles.add_array_buffer(vbo_vertices, 2, 3);
+    vao_circles.bind().add_array_buffer(vbo_positions, 0, 4, 0, 0, 1);
+    vao_circles.bind().add_array_buffer(vbo_radii, 1, 1, 0, 0, 1);
+    vao_circles.bind().add_array_buffer(vbo_vertices, 2, 3);
 
-    vao_points.add_array_buffer(vbo_positions, 0, 4);
+    vao_points.bind().add_array_buffer(vbo_positions, 0, 4);
 }
 
 void Renderer::render(size_t count, const glm::mat4& VP, const glm::vec3& cam_pos) {
-    program_circles.use();
-    program_circles.set_uniformv(0, &VP);
-    program_circles.set_uniform(1, cam_pos);
-    vao_circles.bind();
-    glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 12, count);
-    vao_circles.unbind();
+    if(auto program = program_circles.use(); true) {
+        program.set_uniformv(0, &VP).set_uniform(1, cam_pos);
 
-    program_points.use();
-    program_points.set_uniformv(0, &VP);
-    vao_points.bind();
-    glDrawArrays(GL_POINTS, 0, count);
-    vao_points.unbind();
+        if(auto b = vao_circles.bind(); true)
+            glDrawArraysInstanced(GL_TRIANGLE_FAN, 0, 12, count);
+        }
+
+    if(auto program = program_points.use(); true) {
+        program.set_uniformv(0, &VP);
+
+        if(auto b = vao_points.bind(); true)
+            glDrawArrays(GL_POINTS, 0, count);
+    }
 }

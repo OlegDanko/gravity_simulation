@@ -5,10 +5,10 @@
 
 struct CPUGPUComputeRoutine {
     Bodies& bodies;
-    VertexBufferObject &vbo_positions_out, &rad_out;
+    ArrayBufferObject &vbo_positions_out, &rad_out;
     float G;
 
-    VertexBufferObject
+    ArrayBufferObject
         vbo_position_calc_in,
         vbo_velocities_calc_in,
         vbo_mass_calc_in,
@@ -17,8 +17,8 @@ struct CPUGPUComputeRoutine {
     GravityComputeGPU gravity_compute;
 
     CPUGPUComputeRoutine(Bodies& bodies,
-                         VertexBufferObject &positions_out,
-                         VertexBufferObject  &radii_out,
+                         ArrayBufferObject &positions_out,
+                         ArrayBufferObject  &radii_out,
                          float G);
 
     void compute();

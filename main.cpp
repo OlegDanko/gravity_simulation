@@ -1,5 +1,5 @@
 #include <glm/gtx/transform.hpp>
-#include <GLContext.hpp>
+#include <gl_context/GLContext.hpp>
 #include <WindowContext/GLFWContext.hpp>
 
 #include "ViewPortController.hpp"
@@ -87,12 +87,12 @@ int main() {
 //    bodies.add({0.1, 0.0, 0.0, 0.0}, glm::vec4{0.0}, 1);
 //    bodies.add({-0.1, 0.0, 0.0, 0.0}, glm::vec4{0.0}, 10);
 
-    VertexBufferObject
+    ArrayBufferObject
         vbo_positions_render,
         vbo_radii_render;
 
-    vbo_positions_render.init<glm::vec4>(bodies.get_count());
-    vbo_radii_render.init<float>(bodies.get_count());
+    vbo_positions_render.bind().init<glm::vec4>(bodies.get_count());
+    vbo_radii_render.bind().init<float>(bodies.get_count());
 
     Renderer renderer(vbo_positions_render, vbo_radii_render);
 
@@ -105,10 +105,10 @@ int main() {
     while(glfw.update()) {
         routine.compute();
 
+        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
         glViewport(0, 0, width, height);
-        glClearColor(1.0f, 1.0f, 1.0f, 1.0f);
 
         vp_ctl.apply_movement();
         renderer.render(bodies.get_count(), vp.get_matrix(), vp.position);

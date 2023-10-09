@@ -1,16 +1,16 @@
 #pragma once
 
 #include "ComputeCPU.hpp"
-#include "VertexArrayObject.hpp"
+#include "gl_context/VertexArrayObject.hpp"
 
 struct CPUComputeRoutine {
     Bodies& bodies;
-    VertexBufferObject &pos_out, &rad_out;
+    ArrayBufferObject &pos_out, &rad_out;
     float G;
-
+public:
     CPUComputeRoutine(Bodies& bodies,
-                      VertexBufferObject &positions_out,
-                      VertexBufferObject &radii_out,
+                      ArrayBufferObject &positions_out,
+                      ArrayBufferObject &radii_out,
                       float G);
 
     void compute();
